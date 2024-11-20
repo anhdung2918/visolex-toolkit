@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "visolex"
+version = "0.0.1"
+authors = [
+  { name="Ha Dung Nguyen", email="dungngh@uit.edu.vn" },
+]
+description = "Vietnamese Social Media Lexical Normalization Toolkit"
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/HaDung2002/visolex-toolkit"
+Issues = "https://github.com/HaDung2002/visolex-toolkit/issues"
