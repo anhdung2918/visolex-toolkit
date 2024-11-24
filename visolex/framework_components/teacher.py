@@ -1,6 +1,7 @@
 import os
 import numpy as np
 from visolex.framework_components.rule_attention_network import RAN
+from visolex.framework_components.asset_fetcher import AssetFetcher
 from visolex.utils import sort_data, gen_dataIter
 
 class Teacher:
@@ -75,11 +76,10 @@ class Teacher:
         res = self.agg_model.predict_ran(data_dict, inference_mode=inference_mode)
         return res
 
-    def save(self, savename=None):
-        if savename is None:
-            savefolder = os.path.join(self.args.logdir, 'teacher')
-        else:
-            savefolder = os.path.join(self.args.logdir, savename)
+    def save(self, name='teacher'):
+        savefolder = os.path.join(
+            self.args.ckpt_dir, self.args.student_name, f"{args.training_mode}_{args.rm_accent_ratio}", name
+        )
 
         self.logger.info("Saving teacher at {}".format(savefolder))
         os.makedirs(savefolder, exist_ok=True)
@@ -87,9 +87,14 @@ class Teacher:
         self.agg_model.save(model_file)
         return
 
-    def load(self, name):
-        savefolder = os.path.join(self.args.logdir, name)
+    def load(self, name='teacher', best=False):
+        version = f"{name}_best" if best else f"{name}_last"
+        savefolder = os.path.join(
+            self.args.ckpt_dir, self.args.student_name, f"{args.training_mode}_{args.rm_accent_ratio}", version
+        )
         self.logger.info("Loading teacher from {}".format(savefolder))
         model_file = os.path.join(savefolder, 'rule_attention_network.pt')
+        if not os.path.exists(savefolder):
+            AssetFetcher.download_model(self.args, version, self.logger)
         self.agg_model.load(model_file)
         return

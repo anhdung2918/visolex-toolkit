@@ -1,32 +1,31 @@
-from visolex.utils import evaluate
-from .data_handler import DataHandler
-from .evaluator import Evaluator
+import numpy as np
+
+from visolex.utils import sort_data, evaluate, write_predictions, save_and_report_results
+from .teacher import Teacher
 
 class ViSoLexTrainer:
     def __init__(
-        self, tokenizer, normalizer, training_args, logger,
+        self, training_args,
+        data_handler, tokenizer, normalizer, logger, evaluator,
         train_dataset, dev_dataset, test_dataset,
         unlabeled_dataset=None,
     ):
         if training_args.training_mode == "weakly_supervised":
             assert unlabeled_dataset is not None, \
                 "Unlabeled dataset must be provided in Weakly Supervised Training"
+        self.args = training_args
+        self.dh = data_handler
         self.tokenizer = tokenizer
         self.normalizer = normalizer
-        self.args = training_args
         self.logger = logger
+        self.ev = evaluator
         self.train_dataset = train_dataset
         self.dev_dataset = dev_dataset
         self.test_dataset = test_dataset
-        self.teacher = teacher
         self.unlabeled_dataset = unlabeled_dataset
 
-        self.ev = Evaluator(self.args, logger=self.logger)
-
-        self.dh = DataHandler(self.args, tokenizer=self.tokenizer, logger=self.logger)
-
         if self.args.training_mode != 'supervised':
-            logger.info("Creating pseudo-dataset")
+            self.logger.info("Creating pseudo-dataset")
             self.pseudodataset = self.dh.create_pseudodataset(self.unlabeled_dataset)
             self.pseudodataset.downsample(self.args.sample_size)
 
@@ -39,8 +38,7 @@ class ViSoLexTrainer:
         self.results = {}
         self.student_pred_list = []
 
-
-    def train(self):
+    def train(self, write_pred=False):
         if self.args.training_mode == "supervised":
             self.supervised_training()
         elif self.args.training_mode == "semi_supervised":
@@ -53,7 +51,11 @@ class ViSoLexTrainer:
         if self.args.training_mode == 'weakly_supervised':
             teacher_all_dev = [x['perf'] for x in self.teacher_dev_res_list]
             teacher_all_test = [x['perf'] for x in self.teacher_test_res_list]
-            teacher_perf_str = ["{}:\t{:.2f}\t{:.2f}".format(i, teacher_all_dev[i], teacher_all_test[i]) for i in np.arange(len(teacher_all_dev))]
+            teacher_perf_str = [
+                "{}:\t{:.2f}\t{:.2f}".format(
+                    i, teacher_all_dev[i], teacher_all_test[i]) for i in np.arange(len(teacher_all_dev)
+                )
+            ]
             self.logger.info("TEACHER PERFORMANCES:\n{}".format("\n".join(teacher_perf_str)))
 
         all_dev = [x['perf'] for x in self.dev_res_list]
@@ -64,8 +66,13 @@ class ViSoLexTrainer:
         # Get results in the best epoch (if multiple best epochs keep last one)
         best_dev_epoch = len(all_dev) - np.argmax(all_dev[::-1]) - 1
         best_test_epoch = len(all_test) - np.argmax(all_test[::-1]) - 1
-        self.logger.info("BEST DEV {} = {:.3f} for epoch {}".format(args.metric, all_dev[best_dev_epoch], best_dev_epoch))
-        self.logger.info("FINAL TEST {} = {:.3f} for epoch {} (max={:.2f} for epoch {})".format(self.args.metric, all_test[best_dev_epoch], best_dev_epoch, all_test[best_test_epoch], best_test_epoch))
+        self.logger.info("BEST DEV {} = {:.3f} for epoch {}".format(
+            self.args.metric, all_dev[best_dev_epoch], best_dev_epoch
+        ))
+        self.logger.info("FINAL TEST {} = {:.3f} for epoch {} (max={:.2f} for epoch {})".format(
+            self.args.metric, all_test[best_dev_epoch], 
+            best_dev_epoch, all_test[best_test_epoch], best_test_epoch
+        ))
 
         if self.args.training_mode == 'weakly_supervised':
             self.results['teacher_train_iter'] = self.teacher_train_res_list
@@ -82,9 +89,10 @@ class ViSoLexTrainer:
             self.results['teacher_dev'] = self.teacher_dev_res_list[best_dev_epoch]
             self.results['teacher_test'] = self.teacher_test_res_list[best_dev_epoch]
 
-        write_predictions(
-            self.args, self.logger, self.tokenizer, self.student_pred_list[best_dev_epoch], file_name="student_best_predictions"
-        )
+        if write_pred:
+            write_predictions(
+                self.args, self.logger, self.tokenizer, self.student_pred_list[best_dev_epoch], file_name="student_best_predictions"
+            )
         
         # Save models and results
         self.normalizer.save("student_last")
@@ -95,7 +103,7 @@ class ViSoLexTrainer:
     def supervised_training(self):
         self.logger.info("\n\n\t*** Training Student on labeled data ***")
 
-        newtraindataset = dh.create_pseudodataset(self.train_dataset)
+        newtraindataset = self.dh.create_pseudodataset(self.train_dataset)
         self.results['student_train'] = self.normalizer.train(
             train_dataset=newtraindataset, dev_dataset=self.dev_dataset, mode='train'
         )
@@ -137,12 +145,16 @@ class ViSoLexTrainer:
             self.pseudodataset.student_data['align_index'] = student_pred_dict_unlabeled['align_index']
             self.pseudodataset.student_data['labels'] = student_pred_dict_unlabeled['preds']
             self.pseudodataset.student_data['proba'] = student_pred_dict_unlabeled['proba']
-            self.pseudodataset.student_data['weights'] = [np.max(array, axis=-1) for array in student_pred_dict_unlabeled['proba']]
+            self.pseudodataset.student_data['weights'] = [
+                np.max(array, axis=-1) for array in student_pred_dict_unlabeled['proba']
+            ]
             self.pseudodataset.drop(col='labels', value=-1, type='student')
             del student_pred_dict_unlabeled
 
             self.logger.info('Re-train student on pseudo-labeled instances provided by the teacher')
-            train_res = self.normalizer.train(train_dataset=self.pseudodataset, dev_dataset=self.dev_dataset, mode='train_pseudo')
+            train_res = self.normalizer.train(
+                train_dataset=self.pseudodataset, dev_dataset=self.dev_dataset, mode='train_pseudo'
+            )
 
             self.logger.info('Fine-tuning the student on clean labeled data')
             train_res = self.normalizer.train(train_dataset=self.newtraindataset, dev_dataset=self.dev_dataset, mode='finetune')
@@ -152,7 +164,7 @@ class ViSoLexTrainer:
             dev_res = evaluate(self.normalizer, self.dev_dataset, self.ev, comment="student dev iter{}".format(iter+1))
             self.logger.info("Student Dev performance on iter {}: {}".format(iter, dev_res['perf']))
             self.logger.info("\n\n\t*** Evaluating student on dev data and update records ***")
-            test_res, s_test_dict = evaluate(student, test_dataset, ev, "test", comment="student test iter{}".format(iter+1))
+            test_res, s_test_dict = evaluate(self.normalizer, self.test_dataset, self.ev, "test", comment="student test iter{}".format(iter+1))
             self.logger.info("Student Test performance on iter {}: {}".format(iter, test_res['perf']))
 
             prev_max = max([x['perf'] for x in self.dev_res_list])
@@ -188,7 +200,11 @@ class ViSoLexTrainer:
             # Create pseudo-labeled dataset
             self.pseudodataset.downsample(self.args.sample_size)
 
-            _ = self.teacher.train_ran(train_dataset=self.train_dataset, dev_dataset=self.dev_dataset, unlabeled_dataset=self.pseudodataset)
+            _ = self.teacher.train_ran(
+                train_dataset=self.train_dataset, 
+                dev_dataset=self.dev_dataset, 
+                unlabeled_dataset=self.pseudodataset
+            )
 
             # Apply Teacher on unlabeled data
             teacher_pred_dict_unlabeled = self.teacher.predict_ran(dataset=self.pseudodataset)
@@ -223,15 +239,14 @@ class ViSoLexTrainer:
             dev_res = evaluate(self.normalizer, self.dev_dataset, self.ev, comment="student dev iter{}".format(iter+1))
             self.logger.info("Student Dev performance on iter {}: {}".format(iter, dev_res['perf']))
             self.logger.info("\n\n\t*** Evaluating student on dev data and update records ***")
-            test_res, s_test_dict = evaluate(student, test_dataset, ev, "test", comment="student test iter{}".format(iter+1))
+            test_res, s_test_dict = evaluate(self.normalizer, self.test_dataset, self.ev, "test", comment="student test iter{}".format(iter+1))
             self.logger.info("Student Test performance on iter {}: {}".format(iter, test_res['perf']))
 
             prev_max = max([x['perf'] for x in self.dev_res_list])
             if dev_res['perf'] > prev_max:
                 self.logger.info("Improved dev performance from {:.2f} to {:.2f}".format(prev_max, dev_res['perf']))
                 self.normalizer.save("student_best")
-                if self.args.training_mode == 'weakly_supervised':
-                    self.teacher.save("teacher_best")
+                self.teacher.save("teacher_best")
             self.dev_res_list.append(dev_res)
             self.test_res_list.append(test_res)
             self.student_pred_list.append(s_test_dict)

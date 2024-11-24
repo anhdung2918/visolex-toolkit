@@ -6,13 +6,13 @@ MAX_TOKENS = 500
 TEMPERATURE = 0.7
 
 # Project directories
-PROJECT_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)))
-# os.path.expanduser(os.path.join('~', '.visolex'))
+PROJECT_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__))) # ./visolex-toolkit/visolex
 ARGS_PATH = os.path.join(PROJECT_PATH, 'args.json')
-DATASET_DIR = os.path.join(PROJECT_PATH, "data")
-EXPERIMENT_DIR = os.path.join(PROJECT_PATH, "experiments")
+DATASET_DIR = os.path.join(PROJECT_PATH, "dataset")
+CKPT_DIR = os.path.join(PROJECT_PATH, "model_checkpoints")
 LOG_DIR = os.path.join(PROJECT_PATH, "logs")
-DICT_PATH = os.path.join(PROJECT_PATH, "dict", "dictionary.json")
+DICT_PATH = os.path.join(PROJECT_PATH, "dictionary", "dictionary.json")
+GIT_DOWNLOAD_URL = "https://github.com/anhdung2918/visolex-toolkit/releases/download/0.0.1"
 
 # Tokenizer constants
 MASK_TOKEN = '<mask>'
@@ -38,11 +38,3 @@ RM_ACCENTS_DICT = str.maketrans(
     "ÁÀẢÃẠĂẮẰẲẴẶÂẤẦẨẪẬĐÈÉẺẼẸÊẾỀỂỄỆÍÌỈĨỊÓÒỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢÚÙỦŨỤƯỨỪỬỮỰÝỲỶỸỴáàảãạăắằẳẵặâấầẩẫậđèéẻẽẹêếềểễệíìỉĩịóòỏõọôốồổỗộơớờởỡợúùủũụưứừửữựýỳỷỹỵ",
     "A"*17 + "D" + "E"*11 + "I"*5 + "O"*17 + "U"*11 + "Y"*5 + "a"*17 + "d" + "e"*11 + "i"*5 + "o"*17 + "u"*11 + "y"*5
 )
-
-# RAN CONSTANTS
-NUM_RULES = 2
-UNLABELED_SAMPLE_SIZE = 8096
-
-# INFERENCE
-DOWNSTREAM_TASK = ['vihsd', 'vsmec', 'vispam', 'vifsd']
-DOWNSTREAM_DATA_DIR = os.path.join(PROJECT_PATH, 'downstream_data')

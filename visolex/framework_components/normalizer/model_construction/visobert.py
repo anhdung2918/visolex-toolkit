@@ -7,7 +7,7 @@ from torch.nn import CrossEntropyLoss
 from transformers import XLMRobertaConfig, AutoModel
 from transformers.models.xlm_roberta.modeling_xlm_roberta import XLMRobertaEmbeddings
 from visolex.global_variables import NUM_LABELS_N_MASKS
-from visolex.normalizer.model_construction.nsw_detector import BinaryPredictor
+from .nsw_detector import BinaryPredictor
 
 def gelu(x):
     return x * 0.5 * (1.0 + torch.erf(x / math.sqrt(2.0)))

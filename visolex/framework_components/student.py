@@ -1,6 +1,7 @@
 import os
-from visolex.normalizer.trainer import Trainer
+from .normalizer.trainer import Trainer
 from visolex.utils import sort_data
+from visolex.framework_components.asset_fetcher import AssetFetcher
 
 class Student:
     def __init__(self, args, tokenizer, logger=None):
@@ -45,13 +46,19 @@ class Student:
         return res
 
     def save(self, name='student'):
-        savefolder = os.path.join(self.args.logdir, name)
+        # savefolder = ./model_checkpoints/visobert/weakly_supervised_0.0/student
+        savefolder = os.path.join(
+            self.args.ckpt_dir, self.args.student_name, f"{args.training_mode}_{args.rm_accent_ratio}", name
+        )
         self.logger.info('Saving {} to {}'.format(name, savefolder))
         os.makedirs(savefolder, exist_ok=True)
         self.trainer.save(savefolder)
 
-    def load(self, name):
-        savefolder = os.path.join(self.args.logdir, name)
+    def load(self, name='student', best=False):
+        version = f"{name}_best" if best else f"{name}_last"
+        savefolder = os.path.join(
+            self.args.ckpt_dir, self.args.student_name, f"{args.training_mode}_{args.rm_accent_ratio}", version
+        )
         if not os.path.exists(savefolder):
-            raise(BaseException('Pre-trained student folder does not exist: {}'.format(savefolder)))
+            AssetFetcher.download_model(self.args, version, self.logger)
         self.trainer.load(savefolder)

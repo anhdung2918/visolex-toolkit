@@ -21,9 +21,15 @@ class Dictionary:
         with open(filepath, 'r', encoding='utf-8') as f:
             self.nsw_dict = json.load(f)
 
+    def size(self):
+        """Returns the number of words in the dictionary."""
+        return len(self.nsw_dict)
+
     def add_vocab(self, nsw, response):
+        print(f"Dictionary size before adding new vocab: {self.size()}")
         self.nsw_dict[nsw] = {}
         self.nsw_dict[nsw]['response'] = response
+        print(f"Dictionary size after adding new vocab: {self.size()}")
 
     def search_dict(self, nsw):
         normalized_data = self.nsw_dict[nsw]
@@ -58,11 +64,14 @@ class Dictionary:
 
     def search(self, nsw, search_dict=True, add_to_dict=False, openai_api_key=None, prompt_tmpl=None):
         if search_dict:
+            print("Searching in Dictionary")
             if nsw in self.nsw_dict:
                 response_str = self.search_dict(nsw)
             else:
+                print(f"{nsw} does not exist in Dictionary. Search using GPT-4 instead")
                 response_str = self.search_chatgpt(nsw, openai_api_key, prompt_tmpl, add_to_dict)
         else:
+            print("Searching using GPT-4")
             response_str = self.search_chatgpt(nsw, openai_api_key, prompt_tmpl, add_to_dict)
         
         return response_str

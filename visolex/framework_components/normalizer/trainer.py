@@ -1,9 +1,9 @@
 import os
 import torch
-from visolex.normalizer.model_construction.bartpho import get_bartpho_normalizer
-from visolex.normalizer.model_construction.phobert import get_phobert_normalizer
-from visolex.normalizer.model_construction.visobert import get_visobert_normalizer
-from visolex.normalizer.trainer_methods import train, predict, inference
+from .model_construction.bartpho import get_bartpho_normalizer
+from .model_construction.phobert import get_phobert_normalizer
+from .model_construction.visobert import get_visobert_normalizer
+from .trainer_methods import train, predict, inference
 
 class Trainer:
     def __init__(self, args, tokenizer, logger=None):
@@ -138,6 +138,7 @@ class Trainer:
         return output
 
     def load(self, savefolder):
+        # savefolder = ./model_checkpoints/visobert/weakly_supervised_0.0/student_last
         model_file = os.path.join(savefolder, "final_model.pt")
         self.logger.info("Loading student from {}".format(model_file))
         self.model.load_state_dict(torch.load(model_file))

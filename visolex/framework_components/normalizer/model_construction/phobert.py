@@ -4,23 +4,24 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import CrossEntropyLoss
-from transformers import BartConfig, AutoModel
+from transformers import RobertaConfig, AutoModel
+from transformers.models.roberta.modeling_roberta import RobertaEmbeddings
 from visolex.global_variables import NUM_LABELS_N_MASKS
-from visolex.normalizer.model_construction.nsw_detector import BinaryPredictor
+from .nsw_detector import BinaryPredictor
 
 def gelu(x):
     return x * 0.5 * (1.0 + torch.erf(x / math.sqrt(2.0)))
 
 try:
     # apex.normalization.fused_layer_norm.FusedLayerNorm is optimized for better performance on GPU architectures compared to nn.LayerNorm
-    from apex.normalization.fused_layer_norm import FusedLayerNorm as BartLayerNorm
+    from apex.normalization.fused_layer_norm import FusedLayerNorm as PhoBertLayerNorm
 except ImportError:
     print("Better speed can be achieved with apex installed from https://www.github.com/nvidia/apex.")
-    class BartPhoLayerNorm(nn.Module):
+    class PhoBertLayerNorm(nn.Module):
         def __init__(self, hidden_size, eps=1e-12):
             """Construct a layernorm module in the TF style (epsilon inside the square root).
             """
-            super(BartPhoLayerNorm, self).__init__()
+            super(PhoBertLayerNorm, self).__init__()
             self.weight = nn.Parameter(torch.ones(hidden_size))
             self.bias = nn.Parameter(torch.zeros(hidden_size))
             self.variance_epsilon = eps
@@ -31,15 +32,15 @@ except ImportError:
             x = (x - u) / torch.sqrt(s + self.variance_epsilon)
             return self.weight * x + self.bias
 
-class BartPhoLMHead(nn.Module):
-    def __init__(self, config, bart_model_embedding_weights):
+class PhoBertLMHead(nn.Module):
+    def __init__(self, config, phobert_model_embedding_weights):
         super().__init__()
-        self.dense = nn.Linear(config.d_model, config.d_model)
-        self.layer_norm = BartPhoLayerNorm(config.d_model, eps=1e-12)
+        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
+        self.layer_norm = PhoBertLayerNorm(config.hidden_size, eps=1e-12)
 
-        num_labels = bart_model_embedding_weights.size(0)
-        self.decoder = nn.Linear(bart_model_embedding_weights.size(1), num_labels, bias=False)
-        self.decoder.weight = bart_model_embedding_weights
+        num_labels = phobert_model_embedding_weights.size(0)
+        self.decoder = nn.Linear(phobert_model_embedding_weights.size(1), num_labels, bias=False)
+        self.decoder.weight = phobert_model_embedding_weights
         self.decoder.bias = nn.Parameter(torch.zeros(num_labels))
 
     def forward(self, features):
@@ -49,10 +50,10 @@ class BartPhoLMHead(nn.Module):
         x = self.decoder(x)
         return x
 
-class BartPhoMaskNPredictionHead(nn.Module):
+class PhoBertMaskNPredictionHead(nn.Module):
     def __init__(self, config):
-        super(BartPhoMaskNPredictionHead, self).__init__()
-        self.mask_predictor_dense = nn.Linear(config.d_model, 50)
+        super(PhoBertMaskNPredictionHead, self).__init__()
+        self.mask_predictor_dense = nn.Linear(config.hidden_size, 50)
         self.mask_predictor_proj = nn.Linear(50, NUM_LABELS_N_MASKS)
         self.activation = gelu
 
@@ -60,19 +61,21 @@ class BartPhoMaskNPredictionHead(nn.Module):
         mask_predictor_state = self.activation(self.mask_predictor_dense(sequence_output))
         prediction_scores = self.mask_predictor_proj(mask_predictor_state)
         return prediction_scores
-
-class BartPhoForMaskedLM(nn.Module):
+    
+class PhoBertForMaskedLM(nn.Module):
     def __init__(self, config):
-        super(BartPhoForMaskedLM, self).__init__()
+        super(PhoBertForMaskedLM, self).__init__()
         self.config = config
-        self.bart = AutoModel.from_pretrained('vinai/bartpho-syllable')
-        self.bart.resize_token_embeddings(self.config.vocab_size)
-        self.bart.config.vocab_size = self.config.vocab_size
-        self.bart.config.mask_n_predictor = self.config.mask_n_predictor
-        self.bart.config.nsw_detector = self.config.nsw_detector
-        self.cls = BartPhoLMHead(self.config, self.bart.shared.weight)
-        self.mask_n_predictor = BartPhoMaskNPredictionHead(config) if config.mask_n_predictor else None
-        self.nsw_detector = BinaryPredictor(config.d_model, dense_dim=100) if config.nsw_detector else None
+        self.phobert = AutoModel.from_pretrained('vinai/phobert-base')
+        self.phobert.resize_token_embeddings(self.config.vocab_size)
+        self.phobert.config.vocab_size = self.config.vocab_size
+        self.phobert.config.max_position_embeddings = self.config.max_position_embeddings
+        self.phobert.config.mask_n_predictor = self.config.mask_n_predictor
+        self.phobert.config.nsw_detector = self.config.nsw_detector
+        self.phobert.embeddings = RobertaEmbeddings(self.phobert.config)
+        self.cls = PhoBertLMHead(self.config, self.phobert.embeddings.word_embeddings.weight)
+        self.mask_n_predictor = PhoBertMaskNPredictionHead(config) if config.mask_n_predictor else None
+        self.nsw_detector = BinaryPredictor(config.hidden_size, dense_dim=100) if config.nsw_detector else None
         self.num_labels_n_mask = NUM_LABELS_N_MASKS
 
     def forward(self, input_ids, attention_mask=None,
@@ -82,8 +85,8 @@ class BartPhoForMaskedLM(nn.Module):
         # Extract features
         if attention_mask is None:
             attention_mask = torch.ones_like(input_ids)
-        outputs = self.bart(input_ids, attention_mask=attention_mask, output_hidden_states=True)
-        sequence_output = outputs.encoder_last_hidden_state
+        outputs = self.phobert(input_ids, attention_mask=attention_mask, output_hidden_states=True)
+        sequence_output = outputs.last_hidden_state
 
         # Calculate predictions
         prediction_scores = self.cls(sequence_output)  # (batch_size, seq_len, vocab_size)
@@ -154,25 +157,26 @@ class BartPhoForMaskedLM(nn.Module):
         return loss_dict, pred_dict, sequence_output
 
 
-def get_bartpho_normalizer(vocab_size, checkpoint_dir=None, mask_n_predictor=False, nsw_detector=False):
-    config = BartConfig()
+def get_phobert_normalizer(vocab_size, checkpoint_dir=None, mask_n_predictor=False, nsw_detector=False):
+    config = RobertaConfig()
     config.vocab_size = vocab_size
+    config.max_position_embeddings = 1024
     config.mask_n_predictor = mask_n_predictor
     config.nsw_detector = nsw_detector
-    model = BartPhoForMaskedLM(config)
+    model = PhoBertForMaskedLM(config)
     #model.resize_token_embeddings(vocab_size)
     num_labels = vocab_size + 1
     if checkpoint_dir is None:
         space_vector = torch.normal(
-            torch.mean(model.bart.shared.weight.data, dim=0), 
-            std=torch.std(model.bart.shared.weight.data, dim=0)
+            torch.mean(model.phobert.embeddings.word_embeddings.weight.data, dim=0), 
+            std=torch.std(model.phobert.embeddings.word_embeddings.weight.data, dim=0)
         ).unsqueeze(0)
-        output_layer = torch.cat((model.bart.shared.weight.data, space_vector), dim=0)
-        model.cls = nn.Linear(model.config.d_model, num_labels, bias=False)
-        model.cls.weight = nn.Parameter(output_layer)
+        output_layer = torch.cat((model.phobert.embeddings.word_embeddings.weight.data, space_vector), dim=0)
+        model.cls.decoder = nn.Linear(model.config.hidden_size, num_labels, bias=False)
+        model.cls.decoder.weight = nn.Parameter(output_layer)
         model.cls.bias = nn.Parameter(torch.zeros(num_labels))
     else:
-        model.cls.decoder = nn.Linear(model.config.d_model, num_labels, bias=False)
+        model.cls.decoder = nn.Linear(model.config.hidden_size, num_labels, bias=False)
         model.cls.bias = nn.Parameter(torch.zeros(num_labels))
         model.load_state_dict(torch.load(checkpoint_dir, map_location=lambda storage, loc: storage))
 

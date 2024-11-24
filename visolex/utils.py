@@ -58,7 +58,7 @@ def get_arguments():
         args = json.load(f)
         args = attridict(args)
         args.datapath = DATASET_DIR
-        args.experiment_folder = EXPERIMENT_DIR
+        args.ckpt_dir = CKPT_DIR
         args.logdir = LOG_DIR
     return args
 

@@ -1,5 +1,5 @@
 from visolex.global_variables import MASK_TOKEN, PAD_TOKEN, NUM_LABELS_N_MASKS
-from visolex.normalizer.trainer_tools import get_label_n_masks, apply_fine_tuning_strategy
+from .trainer_tools import get_label_n_masks, apply_fine_tuning_strategy
 from visolex.utils import gen_dataIter, add_special_token
 import torch
 import numpy as np
