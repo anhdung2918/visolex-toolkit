@@ -4,9 +4,9 @@ from visolex.framework_components.regex_expression import Protected, emoji_patte
 from visolex.framework_components.preprocessing import tone_normalization, split_emoji_text, split_emoji_emoji, simple_tokenize
 
 class BasicNormalizer:
-    def __init__(args, logger):
-        self.args = args
-        self.logger = self.logger
+    def __init__(self):
+        """Initialize BasicNormalizer with optional logging (if needed)."""
+        self.logger = None  # Placeholder for logger if needed in the future.
 
     # Preprocessing pipeline
     def basic_normalizer(self, input_str: str,  lowercase: bool = False):
