@@ -137,7 +137,7 @@ def simple_tokenize(text: str, protected_patterns: List[re.Pattern], emoji_patte
     # Detect spans of protected patterns and emojis
     bad_spans = []
     bads = []
-    for pattern in protected_patterns + [emoji_pattern]:
+    for pattern in protected_patterns:
         for match in pattern.finditer(split_punct_text):
             if match.start() != match.end():
                 bads.append([split_punct_text[match.start():match.end()]])
