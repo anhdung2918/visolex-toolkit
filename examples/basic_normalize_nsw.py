@@ -10,7 +10,7 @@ if __name__ == "__main__":
 
     # Normalize
     processed_text = basic_normalizer(
-        text=args.input_str, 
+        input_str=args.input_str, 
         lowercase=args.lowercase
     )
 
