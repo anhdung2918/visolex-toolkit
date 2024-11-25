@@ -6,7 +6,7 @@ def basic_normalizer(input_str, args=None, lowercase=False):
          args = get_arguments()
     logger = get_logger(logfile=os.path.join(args.logdir, 'basic_normalizer.log'))
     basic_normalizer = BasicNormalizer(args, logger)
-    return basic_normalizer.basic_preprocess(text=input_str, lowercase=lowercase)
+    return basic_normalizer.basic_normalizer(text=input_str, lowercase=lowercase)
 
 def detect_nsw(input_str, args=None):
     import os

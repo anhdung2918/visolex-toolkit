@@ -9,7 +9,8 @@ class BasicNormalizer:
         self.logger = self.logger
 
     # Preprocessing pipeline
-    def basic_preprocess(self, text: str,  lowercase: bool = False):
+    def basic_normalizer(self, input_str: str,  lowercase: bool = False):
+        text = input_str
         if lowercase:
             text = text.lower()
         text = tone_normalization(text, tone_dict_map)
