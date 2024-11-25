@@ -35,12 +35,13 @@ except IOError as ex:
 # TOP-LEVEL MODULES
 ###########################################################
 from .framework_components.trainer import ViSoLexTrainer
-from .lexnorm import detect_nsw, normalize_sentence
+from .lexnorm import detect_nsw, normalize_sentence, basic_normalizer
 from .dictionary import Dictionary
 
 optional_imports = {
     'NswDetector': 'visolex.lexnorm.detect',
-    'ViSoLexNormalizer': 'visolex.lexnorm.normalize'
+    'ViSoLexNormalizer': 'visolex.lexnorm.normalize',
+    'BasicNormalizer': 'visolex.lexnorm.basic_normalizer'
 }
 
 @lru_cache(maxsize=None)
@@ -64,8 +65,10 @@ for name, module in optional_imports.items():
 __all__ = [
     'detect_nsw',
     'normalize_sentence',
+    'basic_normalizer',
     'ViSoLexTrainer',
     'Dictionary',
     'NswDetector',
-    'ViSoLexNormalizer'
+    'ViSoLexNormalizer',
+    'BasicNormalizer'
 ]
