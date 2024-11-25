@@ -1,0 +1,13 @@
+datasets
+openai
+sentencepiece
+torch
+joblib
+transformers
+protobuf
+numpy
+torch
+pandas
+scikit-learn
+emot
+attridict
