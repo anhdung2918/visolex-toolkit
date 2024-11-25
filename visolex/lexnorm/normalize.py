@@ -11,6 +11,7 @@ class ViSoLexNormalizer:
         self.logger = self.logger
         self.tokenizer = get_tokenizer(self.args.student_name)
         self.normalizer = Student(self.args, tokenizer=self.tokenizer, logger=self.logger)
+        self.loaded = False
 
     def load(self, last=False):
         if self.args.inference_model == "teacher":
@@ -19,8 +20,11 @@ class ViSoLexNormalizer:
             self.normalizer.load("student_last")
         else:
             self.normalizer.load("student_best")
+        self.loaded = True
 
     def normalize_sentence(self, input_str, detect_nsw=False):
+        if not self.loaded:
+            self.load()
         output = self.normalizer.inference(user_input=input_str)
         pred = output['pred']
         proba = output['proba']

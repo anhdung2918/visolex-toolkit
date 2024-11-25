@@ -6,6 +6,8 @@ class NswDetector:
     def __init__(args, logger, tokenizer=None, normalizer=None):
         self.args = args
         self.logger = self.logger
+        self.loaded = True if normalizer is None else False
+
         if tokenizer is None:
             self.tokenizer = get_tokenizer(self.args.student_name)
         else:
@@ -13,8 +15,20 @@ class NswDetector:
 
         if normalizer is None:
             self.normalizer = Student(self.args, tokenizer=self.tokenizer, logger=self.logger)
+            self.normalizer.load('student_best')
         else:
             self.normalizer = normalizer
+
+    def load(self, last=False):
+        if self.loaded:
+            self.logger.info("Model have already been loaded")
+        else:
+            self.logger.info("Loading model from checkpoints")
+            if last:
+                self.normalizer.load('student_last')
+            else:
+                self.normalizer.load('student_best')
+            self.loaded = True
 
     def concatenate_nsw_spans(nsw_spans):
         result = []
@@ -33,6 +47,10 @@ class NswDetector:
         return result
 
     def detect_nsw(self, input_str=None, normalizer_output=None):
+        if not self.loaded:
+            self.logger.info("Model have not been loaded yet!")
+            self.load()
+
         if normalizer_output is None:
             assert (input_str is not None) & (self.normalizer is not None)
             normalizer_output = self.normalizer.inference(user_input=input_str)

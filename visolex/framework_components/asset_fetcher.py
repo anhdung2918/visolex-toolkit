@@ -101,29 +101,31 @@ def get_from_cache(url, saved_zipfile_path, logger):
 class AssetFetcher:
 
     @staticmethod
-    def download_data(logger):
-        if os.path.exists(DATASET_DIR):
-            logger.info(f"Dataset is already existed in {DATASET_DIR}")
+    def download_data(logger, saved_dir=None):
+        if saved_dir is None:
+            saved_dir = DATASET_DIR
+        if os.path.exists(saved_dir):
+            logger.info(f"Dataset is already existed in {saved_dir}")
             return
 
         url = f"{GIT_DOWNLOAD_URL}/dataset.zip"
-        saved_zipfile_path = DATASET_DIR + '.zip'
+        saved_zipfile_path = saved_dir + '.zip'
         cached_path(url, saved_zipfile_path, logger)
         
         with zipfile.ZipFile(saved_zipfile_path) as zip_file:
-            zip_file.extractall(os.path.dirname(DATASET_DIR))
+            zip_file.extractall(os.path.dirname(saved_dir))
         os.remove(Path(saved_zipfile_path))
-        return
 
     @staticmethod
-    def download_model(args, version, logger):
+    def download_model(args, version, logger, ckpt_dir=None):
+        ckpt_dir = CKPT_DIR if ckpt_dir is None else os.path.join(ckpt_dir, 'model_checkpoints')
         zipfile_name = f'{args.student_name}_{args.training_mode}_{args.rm_accent_ratio}_{version}'
         if args.student_name not in PRETRAINED_TOKENIZER_MAP.keys():
             logger.info(f"No matching distribution found for '{args.student_name}'")
             return
         
         saved_dir = os.path.join(
-            CKPT_DIR, args.student_name, f"{args.training_mode}_{args.rm_accent_ratio}"
+            ckpt_dir, args.student_name, f"{args.training_mode}_{args.rm_accent_ratio}"
         )
         saved_model_path = os.path.join(saved_dir, version)
         if os.path.exists(saved_model_path):
@@ -143,13 +145,24 @@ class AssetFetcher:
         os.remove(Path(saved_zipfile_path))
 
     @staticmethod
-    def remove(args, logger):
+    def remove(args, logger, save_dir=None, asset='checkpoints'):
         if args.student_name not in PRETRAINED_TOKENIZER_MAP.keys():
             logger.info(f"No matching distribution found for '{args.student_name}'")
             return
-        cache_dir = os.path.join(
-            CKPT_DIR, args.student_name, f"{args.training_mode}_{args.rm_accent_ratio}"
-        )
-        if cache_dir.is_dir():
-            shutil.rmtree(cache_dir)
-        logger.info("Model is removed.")
+
+        if asset == 'checkpoints':
+            if save_dir is None:
+                save_dir = CKPT_DIR
+            cache_dir = os.path.join(
+                save_dir, args.student_name, f"{args.training_mode}_{args.rm_accent_ratio}"
+            )
+            if cache_dir.is_dir():
+                shutil.rmtree(cache_dir)
+            logger.info("Model checkpoints are removed.")
+        elif asset == 'dataset':
+            if save_dir is None:
+                save_dir = DATASET_DIR
+            cache_dir = save_dir
+            if cache_dir.is_dir():
+                shutil.rmtree(cache_dir)
+            logger.info("Dataset is removed.")
