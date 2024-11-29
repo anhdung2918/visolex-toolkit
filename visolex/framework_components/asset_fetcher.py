@@ -145,24 +145,24 @@ class AssetFetcher:
         os.remove(Path(saved_zipfile_path))
 
     @staticmethod
-    def remove(args, logger, save_dir=None, asset='checkpoints'):
+    def remove(args, logger, saved_dir=None, asset='checkpoints'):
         if args.student_name not in PRETRAINED_TOKENIZER_MAP.keys():
             logger.info(f"No matching distribution found for '{args.student_name}'")
             return
 
         if asset == 'checkpoints':
-            if save_dir is None:
-                save_dir = CKPT_DIR
+            if saved_dir is None:
+                saved_dir = CKPT_DIR
             cache_dir = os.path.join(
-                save_dir, args.student_name, f"{args.training_mode}_{args.rm_accent_ratio}"
+                saved_dir, args.student_name, f"{args.training_mode}_{args.rm_accent_ratio}"
             )
             if cache_dir.is_dir():
                 shutil.rmtree(cache_dir)
             logger.info("Model checkpoints are removed.")
         elif asset == 'dataset':
-            if save_dir is None:
-                save_dir = DATASET_DIR
-            cache_dir = save_dir
+            if saved_dir is None:
+                saved_dir = DATASET_DIR
+            cache_dir = saved_dir
             if cache_dir.is_dir():
                 shutil.rmtree(cache_dir)
             logger.info("Dataset is removed.")
