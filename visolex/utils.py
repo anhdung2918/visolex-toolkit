@@ -12,7 +12,7 @@ from transformers import AutoTokenizer
 from visolex.global_variables import (
     SPECIAL_TOKEN_LS, BOS_TOKEN, EOS_TOKEN, RM_ACCENTS_DICT,
     PRETRAINED_TOKENIZER_MAP, NULL_STR,
-    PROJECT_PATH, DATASET_DIR, LOG_DIR, ARGS_PATH, 
+    PROJECT_PATH, DATASET_DIR, LOG_DIR, ARGS_PATH, CKPT_DIR
 )
 
 class Singleton:
@@ -54,13 +54,25 @@ class Singleton:
         return isinstance(inst, self._decorated)
 
 def get_arguments():
-    with open(ARGS_PATH, 'r', encoding='utf-8') as f:
+    import chardet
+    import json
+
+    with open(ARGS_PATH, 'rb') as f:
+        # Detect file encoding
+        raw_data = f.read()
+        detected_encoding = chardet.detect(raw_data)['encoding']
+    
+    # Fallback to the detected encoding (default to UTF-8 if detection fails)
+    encoding = detected_encoding if detected_encoding else 'utf-8'
+
+    with open(ARGS_PATH, 'r', encoding=encoding) as f:
         args = json.load(f)
         args = attridict(args)
         args.datapath = DATASET_DIR
         args.ckpt_dir = CKPT_DIR
         args.logdir = LOG_DIR
     return args
+
 
 def get_tokenizer(model_name):
     tokenizer = AutoTokenizer.from_pretrained(PRETRAINED_TOKENIZER_MAP[model_name])
