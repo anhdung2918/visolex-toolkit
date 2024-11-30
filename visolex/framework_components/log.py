@@ -1,6 +1,11 @@
+import os
 import logging
 
 def get_logger(logfile, name='mylogger', level=logging.DEBUG, format='%(asctime)s %(levelname)s %(message)s'):
+    # Ensure the directory for the logfile exists
+    log_dir = os.path.dirname(logfile)
+    os.makedirs(log_dir, exist_ok=True)
+    
     logger = logging.getLogger(name)
     logger.setLevel(level)
 
@@ -13,9 +18,6 @@ def get_logger(logfile, name='mylogger', level=logging.DEBUG, format='%(asctime)
     consoleHandler = logging.StreamHandler()
     consoleHandler.setFormatter(logging.Formatter(format))
     logger.addHandler(consoleHandler)
+    
     logger.propagate = False
     return logger
-
-
-def close(logger):
-    logger.handlers = []
