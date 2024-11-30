@@ -7,7 +7,7 @@ TEMPERATURE = 0.7
 
 # Project directories
 PROJECT_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__))) # ./visolex-toolkit/visolex
-ARGS_PATH = os.path.join(PROJECT_PATH, 'args.json')
+ARGS_PATH = os.path.join(PROJECT_PATH, 'arguments.json')
 DATASET_DIR = os.path.join(PROJECT_PATH, "dataset")
 CKPT_DIR = os.path.join(PROJECT_PATH, "model_checkpoints")
 LOG_DIR = os.path.join(PROJECT_PATH, "logs")
